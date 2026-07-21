@@ -1,17 +1,15 @@
 package edu.pe.cibertec.taller.servicio;
 
+import edu.pe.cibertec.taller.excepcion.CitaNoCancelableException;
 import edu.pe.cibertec.taller.excepcion.EspecialidadIncorrectaException;
 import edu.pe.cibertec.taller.excepcion.HorarioNoPermitidoException;
 import edu.pe.cibertec.taller.excepcion.MecanicoNoEncontradoException;
+import edu.pe.cibertec.taller.modelo.*;
 import edu.pe.cibertec.taller.repositorio.RepositorioCitas;
 import edu.pe.cibertec.taller.repositorio.RepositorioMecanicos;
 import edu.pe.cibertec.taller.servicio.impl.ServicioCitasImpl;
 import edu.pe.cibertec.taller.util.ProveedorFechaHora;
 import edu.pe.cibertec.taller.util.ServicioNotificaciones;
-import edu.pe.cibertec.taller.modelo.Cita;
-import edu.pe.cibertec.taller.modelo.Mecanico;
-import edu.pe.cibertec.taller.modelo.EstadoCita;
-import edu.pe.cibertec.taller.modelo.TipoServicio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -431,7 +429,12 @@ class ServicioCitasImplTest {
     }
 
 
-//>-------------------------------------------------------------------------------------------------<
+//>---------------------------Fin de la pregunta 2 ----------------------------------------------------------------------<
+
+
+
+//>---------------------------------------------Pregunta 3--------------------------------------------<
+
 	@Test
 	@DisplayName("Agendar en una fecha del pasado lanza FechaInvalidaException")
 	void agendarConFechaEnElPasado() {
@@ -471,11 +474,63 @@ class ServicioCitasImplTest {
 		// Arrange
 		// TODO
 
+        String datoZafiro = "MUN-757";
+        Long idCita = 10L;
+
+        LocalDateTime fechaCita =
+                LocalDateTime.of(2026, 9, 17, 10, 0);
+
+        LocalDateTime fechaActual =
+                LocalDateTime.of(2026, 9, 16, 10, 0);
+
+        Mecanico mecanico = new Mecanico(
+                1L,
+                "Billy Muñoz",
+                TipoServicio.CAMBIO_ACEITE
+        );
+
+        Cita cita = new Cita(
+                idCita,
+                mecanico,
+                datoZafiro,
+                TipoServicio.CAMBIO_ACEITE,
+                fechaCita,
+                1,
+                EstadoCita.PROGRAMADA
+        );
+
+        when(repositorioCitas.findById(idCita))
+                .thenReturn(Optional.of(cita));
+
+        when(proveedorFechaHora.ahora())
+                .thenReturn(fechaActual);
+
+        when(repositorioCitas.save(cita))
+                .thenReturn(cita);
+
 		// Act
 		// TODO
 
+
+        ResultadoCancelacion resultado =
+                servicioCitas.cancelarCita(idCita);
+
 		// Assert
 		// TODO: penalidad 0, estado CANCELADA, notificacion
+
+
+        assertEquals(true, resultado.isExitoso());
+        assertEquals(0.0, resultado.getMontoPenalidad());
+        assertEquals(EstadoCita.CANCELADA, cita.getEstado());
+
+        verify(repositorioCitas, times(1))
+                .save(cita);
+
+        verify(servicioNotificaciones, times(1))
+                .notificarCitaCancelada(cita);
+
+
+
 	}
 
 
@@ -488,11 +543,61 @@ class ServicioCitasImplTest {
 		// Arrange
 		// TODO
 
+        String datoZafiro = "MUN-757";
+        Long idCita = 11L;
+
+        LocalDateTime fechaCita =
+                LocalDateTime.of(2026, 9, 17, 10, 0);
+
+        LocalDateTime fechaActual =
+                LocalDateTime.of(2026, 9, 17, 8, 0);
+
+        Mecanico mecanico = new Mecanico(
+                1L,
+                "Billy Muñoz",
+                TipoServicio.CAMBIO_ACEITE
+        );
+
+        Cita cita = new Cita(
+                idCita,
+                mecanico,
+                datoZafiro,
+                TipoServicio.CAMBIO_ACEITE,
+                fechaCita,
+                1,
+                EstadoCita.PROGRAMADA
+        );
+
+        when(repositorioCitas.findById(idCita))
+                .thenReturn(Optional.of(cita));
+
+        when(proveedorFechaHora.ahora())
+                .thenReturn(fechaActual);
+
+        when(repositorioCitas.save(cita))
+                .thenReturn(cita);
+
+
+
 		// Act
 		// TODO
 
+        ResultadoCancelacion resultado =
+                servicioCitas.cancelarCita(idCita);
+
 		// Assert
 		// TODO
+
+        assertEquals(true, resultado.isExitoso());
+        assertEquals(50.0, resultado.getMontoPenalidad());
+        assertEquals(EstadoCita.CANCELADA, cita.getEstado());
+
+        verify(repositorioCitas, times(1))
+                .save(cita);
+
+        verify(servicioNotificaciones, times(1))
+                .notificarCitaCancelada(cita);
+
 	}
 
 	@Test
@@ -511,9 +616,47 @@ class ServicioCitasImplTest {
 		// Arrange
 		// TODO
 
+        String datoZafiro = "MUN-757";
+        Long idCita = 12L;
+
+        Mecanico mecanico = new Mecanico(
+                1L,
+                "Billy Muñoz",
+                TipoServicio.CAMBIO_ACEITE
+        );
+
+        Cita citaAtendida = new Cita(
+                idCita,
+                mecanico,
+                datoZafiro,
+                TipoServicio.CAMBIO_ACEITE,
+                LocalDateTime.of(2026, 9, 17, 10, 0),
+                1,
+                EstadoCita.ATENDIDA
+        );
+
+        when(repositorioCitas.findById(idCita))
+                .thenReturn(Optional.of(citaAtendida));
+
 		// Act y Assert
 		// TODO
-	}
+
+        assertThrows(
+                CitaNoCancelableException.class,
+                () -> servicioCitas.cancelarCita(idCita)
+        );
+
+        assertEquals(EstadoCita.ATENDIDA, citaAtendida.getEstado());
+
+        verify(repositorioCitas, never())
+                .save(any(Cita.class));
+
+        verify(servicioNotificaciones, never())
+                .notificarCitaCancelada(any(Cita.class));
+
+
+
+    }
 
 	@Test
 	@DisplayName("Buscar mecanico disponible retorna el primero sin citas superpuestas")
