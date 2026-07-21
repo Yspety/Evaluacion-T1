@@ -1,16 +1,31 @@
 package edu.pe.cibertec.taller.servicio;
 
+import edu.pe.cibertec.taller.excepcion.EspecialidadIncorrectaException;
+import edu.pe.cibertec.taller.excepcion.MecanicoNoEncontradoException;
 import edu.pe.cibertec.taller.repositorio.RepositorioCitas;
 import edu.pe.cibertec.taller.repositorio.RepositorioMecanicos;
 import edu.pe.cibertec.taller.servicio.impl.ServicioCitasImpl;
 import edu.pe.cibertec.taller.util.ProveedorFechaHora;
 import edu.pe.cibertec.taller.util.ServicioNotificaciones;
+import edu.pe.cibertec.taller.modelo.Cita;
+import edu.pe.cibertec.taller.modelo.Mecanico;
+import edu.pe.cibertec.taller.modelo.EstadoCita;
+import edu.pe.cibertec.taller.modelo.TipoServicio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 
 @ExtendWith(MockitoExtension.class)
 class ServicioCitasImplTest {
@@ -42,11 +57,72 @@ class ServicioCitasImplTest {
 		// Arrange
 		// TODO
 
+        String placaZafiro = "MUN-757";
+        Long idMecanico = 1L;
+
+        LocalDateTime fechaActual =
+                LocalDateTime.of(2026, 9, 16, 8, 0);
+
+        LocalDateTime fechaCita =
+                LocalDateTime.of(2026, 9, 17, 10, 0);
+
+        Mecanico mecanico = new Mecanico(
+                idMecanico,
+                "Billy Muñoz",
+                TipoServicio.CAMBIO_ACEITE
+        );
+
+        Cita citaGuardada = new Cita(
+                1L,
+                mecanico,
+                placaZafiro,
+                TipoServicio.CAMBIO_ACEITE,
+                fechaCita,
+                1,
+                EstadoCita.PROGRAMADA
+        );
+
+        when(repositorioMecanicos.findById(idMecanico))
+                .thenReturn(Optional.of(mecanico));
+
+        when(proveedorFechaHora.ahora())
+                .thenReturn(fechaActual);
+
+        when(repositorioCitas.findByMecanicoIdAndEstado(
+                idMecanico,
+                EstadoCita.PROGRAMADA
+        )).thenReturn(Collections.emptyList());
+
+        when(repositorioCitas.save(any(Cita.class)))
+                .thenReturn(citaGuardada);
+
+
 		// Act
 		// TODO
 
+
+        Cita resultado = servicioCitas.agendarCita(
+                idMecanico,
+                placaZafiro,
+                TipoServicio.CAMBIO_ACEITE,
+                fechaCita
+        );
+
+
+
+
 		// Assert
 		// TODO: verificar estado, duracion, save y notificacion
+
+        assertEquals(EstadoCita.PROGRAMADA, resultado.getEstado());
+        assertEquals(1, resultado.getDuracionHoras());
+
+        verify(repositorioCitas, times(1))
+                .save(any(Cita.class));
+
+        verify(servicioNotificaciones, times(1))
+                .notificarCitaAgendada(citaGuardada);
+
 	}
 
 	@Test
@@ -55,8 +131,35 @@ class ServicioCitasImplTest {
 		// Arrange
 		// TODO
 
+        String placaZafiro = "MUN-757";
+        Long idMecanico = 99L;
+
+        LocalDateTime fechaCita =
+                LocalDateTime.of(2026, 9, 17, 10, 0);
+
+        when(repositorioMecanicos.findById(idMecanico))
+                .thenReturn(Optional.empty());
+
+
+
 		// Act y Assert
-		// TODO
+
+        // TODO
+
+        assertThrows(
+                MecanicoNoEncontradoException.class,
+                () -> servicioCitas.agendarCita(
+                        idMecanico,
+                        placaZafiro,
+                        TipoServicio.CAMBIO_ACEITE,
+                        fechaCita
+                )
+        );
+
+        verify(repositorioCitas, never())
+                .save(any(Cita.class));
+
+
 	}
 
 	@Test
@@ -65,8 +168,43 @@ class ServicioCitasImplTest {
 		// Arrange
 		// TODO
 
+        String placaZafiro = "MUN-757";
+        Long idMecanico = 1L;
+
+        LocalDateTime fechaCita =
+                LocalDateTime.of(2026, 9, 17, 10, 0);
+
+        Mecanico mecanico = new Mecanico(
+                idMecanico,
+                "Billy Muñoz",
+                TipoServicio.CAMBIO_ACEITE
+        );
+
+        when(repositorioMecanicos.findById(idMecanico))
+                .thenReturn(Optional.of(mecanico));
+
+
+
+
 		// Act y Assert
 		// TODO
+
+        assertThrows(
+                EspecialidadIncorrectaException.class,
+                () -> servicioCitas.agendarCita(
+                        idMecanico,
+                        placaZafiro,
+                        TipoServicio.REPARACION_MOTOR,
+                        fechaCita
+                )
+        );
+
+        verify(repositorioCitas, never())
+                .save(any(Cita.class));
+
+
+
+
 	}
 
 	@Test
